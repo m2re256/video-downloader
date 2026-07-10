@@ -1,7 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const ytdlp = require('yt-dlp-exec');
+const fs = require('fs');
+const https = require('https');
+const { execFile } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -10,7 +12,53 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Basic URL sanity check
+const BIN_DIR = path.join(__dirname, 'bin');
+const YTDLP_PATH = path.join(BIN_DIR, 'yt-dlp');
+const YTDLP_URL = 'https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp';
+
+function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    const file = fs.createWriteStream(dest);
+    https.get(url, (response) => {
+      if (response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
+        downloadFile(response.headers.location, dest).then(resolve).catch(reject);
+        return;
+      }
+      if (response.statusCode !== 200) {
+        reject(new Error(`Failed to download yt-dlp: HTTP ${response.statusCode}`));
+        return;
+      }
+      response.pipe(file);
+      file.on('finish', () => file.close(resolve));
+    }).on('error', (err) => {
+      fs.unlink(dest, () => {});
+      reject(err);
+    });
+  });
+}
+
+async function ensureYtDlp() {
+  if (!fs.existsSync(BIN_DIR)) fs.mkdirSync(BIN_DIR, { recursive: true });
+  if (!fs.existsSync(YTDLP_PATH)) {
+    console.log('Downloading yt-dlp binary...');
+    await downloadFile(YTDLP_URL, YTDLP_PATH);
+    fs.chmodSync(YTDLP_PATH, 0o755);
+    console.log('yt-dlp binary ready.');
+  }
+}
+
+function runYtDlp(args) {
+  return new Promise((resolve, reject) => {
+    execFile(YTDLP_PATH, args, { maxBuffer: 1024 * 1024 * 50 }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(stderr || error.message));
+        return;
+      }
+      resolve(stdout);
+    });
+  });
+}
+
 function isValidUrl(str) {
   try {
     new URL(str);
@@ -20,7 +68,6 @@ function isValidUrl(str) {
   }
 }
 
-// Get video info + available formats
 app.post('/api/info', async (req, res) => {
   const { url } = req.body;
 
@@ -29,14 +76,9 @@ app.post('/api/info', async (req, res) => {
   }
 
   try {
-    const info = await ytdlp(url, {
-      dumpSingleJson: true,
-      noWarnings: true,
-      noCheckCertificates: true,
-      preferFreeFormats: true,
-    });
+    const stdout = await runYtDlp(['--dump-single-json', '--no-warnings', '--no-check-certificates', url]);
+    const info = JSON.parse(stdout);
 
-    // Filter and simplify formats — keep ones with a direct URL and either video or audio
     const formats = (info.formats || [])
       .filter(f => f.url && (f.vcodec !== 'none' || f.acodec !== 'none'))
       .map(f => ({
@@ -61,7 +103,6 @@ app.post('/api/info', async (req, res) => {
   }
 });
 
-// Stream the actual download to the user
 app.get('/api/download', async (req, res) => {
   const { url, format_id } = req.query;
 
@@ -72,13 +113,13 @@ app.get('/api/download', async (req, res) => {
   try {
     res.setHeader('Content-Disposition', 'attachment; filename="video.mp4"');
 
-    const subprocess = ytdlp.exec(url, {
-      format: format_id || 'best',
-      output: '-', // stream to stdout
-    });
+    const { spawn } = require('child_process');
+    const args = ['-f', format_id || 'best', '-o', '-', url];
+    const subprocess = spawn(YTDLP_PATH, args);
 
     subprocess.stdout.pipe(res);
 
+    subprocess.stderr.on('data', () => {});
     subprocess.on('error', (err) => {
       console.error(err);
       if (!res.headersSent) res.status(500).end('Download failed.');
@@ -89,6 +130,15 @@ app.get('/api/download', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+ensureYtDlp()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error('Failed to set up yt-dlp:', err);
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT} (yt-dlp setup failed)`);
+    });
+  });
