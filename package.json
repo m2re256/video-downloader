@@ -3,14 +3,13 @@
   "version": "1.0.0",
   "description": "Free social media video downloader using yt-dlp",
   "main": "server.js",
+  "license": "MIT",
   "scripts": {
-    "start": "node server.js",
-    "postinstall": "node -e \"require('yt-dlp-exec').exec ? console.log('yt-dlp ready') : console.log('setup ok')\""
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.19.2",
-    "cors": "^2.8.5",
-    "yt-dlp-exec": "^1.0.2"
+    "cors": "^2.8.5"
   },
   "engines": {
     "node": ">=18"
