@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reelport — Video Downloader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="tape-noise"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◉</span>
+      <span class="brand-name">REELPORT</span>
+    </div>
+    <span class="brand-tag">LINK IN — FILE OUT</span>
+  </header>
+
+  <main class="deck">
+
+    <section class="hero">
+      <p class="eyebrow">PASTE A LINK, PRESS PLAY</p>
+      <h1>Pull any clip<br>off the feed.</h1>
+      <p class="hero-sub">Instagram, TikTok, YouTube, X — drop the link below and pick your format.</p>
+    </section>
+
+    <section class="console" aria-label="Downloader controls">
+      <div class="console-strip">
+        <div class="jack">
+          <label for="urlInput" class="jack-label">SRC</label>
+          <input type="text" id="urlInput" placeholder="https://..." autocomplete="off" spellcheck="false">
+        </div>
+        <button id="fetchBtn" class="play-btn" aria-label="Fetch video">
+          <span class="play-icon">▶</span>
+          <span class="play-text">PLAY</span>
+        </button>
+      </div>
+      <div class="reel-track" id="reelTrack" aria-hidden="true">
+        <div class="reel-fill" id="reelFill"></div>
+      </div>
+      <p id="status" class="status-line"></p>
+    </section>
+
+    <section id="result" class="result hidden">
+      <div class="result-head">
+        <div class="thumb-wrap">
+          <img id="thumb" src="" alt="">
+          <span class="thumb-badge" id="durationBadge"></span>
+        </div>
+        <div class="result-meta">
+          <h2 id="videoTitle"></h2>
+          <p id="videoMeta"></p>
+        </div>
+      </div>
+
+      <div class="tracklist">
+        <p class="tracklist-label">AVAILABLE TRACKS</p>
+        <div id="formatsList"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="foot">
+    <p>Built for personal use. Respect creators' rights and platform terms.</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
